@@ -31,14 +31,15 @@ uint64_t fast_ToInt(const char* a, const char* b)
     return result;
 }
 
-size_t JoinQuery::avg(const std::string& segmentParam)
+std::unordered_set<int> make_customer_ht(const std::string& path_to_customer,
+                                        const std::string& segmentParam)
 {
     std::unordered_set<int> customers;
 
     int file_desc_cust = open(path_to_customer.c_str(), O_RDONLY);
-    assert(file_desc_cust != -1);
+    if (file_desc_cust == -1) return customers;
     struct stat buffer_cust;
-    assert(fstat(file_desc_cust, &buffer_cust) != -1);
+    if (fstat(file_desc_cust, &buffer_cust) == -1) return customers;
     size_t buffer_size_cust = buffer_cust.st_size;
     void* ptr_cust = mmap(nullptr, buffer_size_cust, PROT_READ, MAP_SHARED, file_desc_cust, 0);
     char* ptr_cust_current = static_cast<char*>(ptr_cust);
@@ -70,15 +71,18 @@ size_t JoinQuery::avg(const std::string& segmentParam)
     }
     munmap(ptr_cust, buffer_cust.st_size);
     close(file_desc_cust);
+    return customers;
+}
 
-
-
+std::unordered_set<int> make_cust_orders_ht(const std::string& path_to_orders,
+                                     const std::unordered_set<int>& customers)
+{
     std::unordered_set<int> orders;
 
     int file_desc_ord = open(path_to_orders.c_str(), O_RDONLY);
-    assert(file_desc_ord != -1);
+    if (file_desc_ord == -1) return orders;
     struct stat buffer_ord;
-    assert(fstat(file_desc_ord, &buffer_ord) != -1);
+    if (fstat(file_desc_ord, &buffer_ord) == -1) return orders;
     size_t buffer_size_ord = buffer_ord.st_size;
     void* ptr_ord = mmap(nullptr, buffer_size_ord, PROT_READ, MAP_SHARED, file_desc_ord, 0);
     char* ptr_ord_current = static_cast<char*>(ptr_ord);
@@ -109,19 +113,26 @@ size_t JoinQuery::avg(const std::string& segmentParam)
     }
     munmap(ptr_ord, buffer_ord.st_size);
     close(file_desc_ord);
+    return orders;
+}
 
+size_t JoinQuery::avg(const std::string& segmentParam)
+{
+    auto customers = make_customer_ht(path_to_customer, segmentParam);
+    auto orders = make_cust_orders_ht(path_to_orders, customers);
+
+    uint64_t count = 0;
+    uint64_t sum = 0;
 
     int file_desc = open(path_to_lineitem.c_str(), O_RDONLY);
-    assert(file_desc != -1);
+    if (file_desc == -1) return -1;
     struct stat buffer;
-    assert(fstat(file_desc, &buffer) != -1);
+    if (fstat(file_desc, &buffer) == -1) return -1;
     size_t buffer_size = buffer.st_size;
     void* ptr = mmap(nullptr, buffer_size, PROT_READ, MAP_SHARED, file_desc, 0);
     char* ptr_current = static_cast<char*>(ptr);
     char* ptr_next;
 
-    uint64_t count = 0;
-    uint64_t sum = 0;
     while ((ptr_next = static_cast<char*>(memchr(ptr_current, '\n', buffer_size)))) {
         size_t line_len = ptr_next - ptr_current;
 
