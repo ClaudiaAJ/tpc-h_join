@@ -1,4 +1,6 @@
+#include <unordered_map>
 #include <string>
+#include <unordered_set>
 
 //---------------------------------------------------------------------------
 class JoinQuery
@@ -21,6 +23,7 @@ public:
     std::string path_to_orders;
     std::string path_to_customer;
     JoinQuery(const std::string& lineitem, const std::string& orders, const std::string& customer);
+
     /**************************************************************************
      *  Computes avg(l_quantity)*100 for the following query.
      *
